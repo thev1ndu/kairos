@@ -1,0 +1,69 @@
+name: 'size-history demo (temp — do not merge)'
+# Demonstrates scripts/iso-size-history.sh end to end without the real ISO
+# build: it synthesizes several merges' worth of fake ISOs, runs record/render,
+# and publishes the durable CSV + Markdown table + SVG chart to the
+# `size-history-demo` branch. This is the exact flow the real size-history job
+# in image-master.yaml runs on every merge to master (PR #4282), minus the
+# heavy build. Trigger: push to this branch.
+on:
+  push:
+    branches:
+      - test/size-history-ci
+permissions:
+  contents: write
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Build + publish a demo history to the size-history-demo branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REPO='${{ github.repository }}'
+          BRANCH='size-history-demo'
+          DATA_DIR="${RUNNER_TEMP}/size-history"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          mkdir -p "$DATA_DIR"; git -C "$DATA_DIR" init -q -b "$BRANCH"
+
+          mk() { # mk <root> <release> <core-MiB> <std-MiB>
+            root="$1"; rel="$2"
+            mkdir -p "$root/kairos-hadron-$rel-core-amd64-generic" \
+                     "$root/kairos-hadron-$rel-standard-amd64-generic-k3s"
+            head -c "$(( $3 * 1048576 ))" /dev/zero > "$root/kairos-hadron-$rel-core-amd64-generic/iso-$rel.iso"
+            head -c "$(( $4 * 1048576 ))" /dev/zero > "$root/kairos-hadron-$rel-standard-amd64-generic-k3s/iso-$rel.iso"
+          }
+
+          # Six simulated merges. Note the per-build release suffix changes every
+          # time (v0.4.0 -> v0.5.2) yet the artifacts still pair correctly, and a
+          # release tag is annotated onto its merge row.
+          i=0
+          declare -a SHAS=(a1b2c3d4e5f6 b2c3d4e5f6a1 c3d4e5f6a1b2 d4e5f6a1b2c3 e5f6a1b2c3d4 f6a1b2c3d4e5)
+          declare -a RELS=(v0.4.0 v0.4.1 v0.5.0 v0.5.0 v0.5.1 v0.5.2)
+          declare -a CORE=(812 814 858 861 863 870)
+          declare -a STD=(905 904 942 948 947 951)
+          : >"${RUNNER_TEMP}/tags.txt"
+          for i in 0 1 2 3 4 5; do
+            rm -rf candidate
+            mk candidate "${RELS[$i]}" "${CORE[$i]}" "${STD[$i]}"
+            scripts/iso-size-history.sh record "${DATA_DIR}/size-history.csv" \
+              "${SHAS[$i]}$(printf '%040d' 0 | cut -c1-28)" candidate >/dev/null
+          done
+          # Annotate two of the merges as releases (sha must match the recorded one).
+          full3="c3d4e5f6a1b2$(printf '%040d' 0 | cut -c1-28)"
+          full6="f6a1b2c3d4e5$(printf '%040d' 0 | cut -c1-28)"
+          printf '%s v0.5.0\n%s v0.5.2\n' "$full3" "$full6" > "${RUNNER_TEMP}/tags.txt"
+
+          scripts/iso-size-history.sh render "${DATA_DIR}/size-history.csv" \
+            "$DATA_DIR" "$REPO" "${RUNNER_TEMP}/tags.txt" | tee -a "$GITHUB_STEP_SUMMARY" || true
+          cat "${DATA_DIR}/SIZE_HISTORY.md" >> "$GITHUB_STEP_SUMMARY"
+
+          cd "$DATA_DIR"
+          git add size-history.csv SIZE_HISTORY.md size-history.svg
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "demo: rendered ISO size history (synthetic data)"
+          git push --quiet --force "$REMOTE" "HEAD:${BRANCH}"
+          echo "Published demo to $BRANCH"
