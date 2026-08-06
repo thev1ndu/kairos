@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="402" viewBox="0 0 760 402" font-family="sans-serif" font-size="11">
+<rect width="760" height="402" fill="#ffffff"/>
+<text x="90" y="18" fill="#1f77b4" font-weight="bold">kairos-hadron-core-amd64-generic</text>
+<line x1="90" y1="26" x2="90" y2="146" stroke="#888"/>
+<line x1="90" y1="146" x2="740" y2="146" stroke="#888"/>
+<line x1="90" y1="146.0" x2="740" y2="146.0" stroke="#eee"/>
+<text x="84" y="149.0" text-anchor="end" fill="#555">803.3 MiB</text>
+<line x1="90" y1="116.0" x2="740" y2="116.0" stroke="#eee"/>
+<text x="84" y="119.0" text-anchor="end" fill="#555">822.1 MiB</text>
+<line x1="90" y1="86.0" x2="740" y2="86.0" stroke="#eee"/>
+<text x="84" y="89.0" text-anchor="end" fill="#555">841.0 MiB</text>
+<line x1="90" y1="56.0" x2="740" y2="56.0" stroke="#eee"/>
+<text x="84" y="59.0" text-anchor="end" fill="#555">859.9 MiB</text>
+<line x1="90" y1="26.0" x2="740" y2="26.0" stroke="#eee"/>
+<text x="84" y="29.0" text-anchor="end" fill="#555">878.7 MiB</text>
+<polyline fill="none" stroke="#1f77b4" stroke-width="2" points="90.0,132.2 220.0,129.0 350.0,58.9 480.0,54.2 610.0,51.0 740.0,39.8 "/>
+<text x="90" y="222" fill="#1f77b4" font-weight="bold">kairos-hadron-standard-amd64-generic-k3s</text>
+<line x1="90" y1="230" x2="90" y2="350" stroke="#888"/>
+<line x1="90" y1="350" x2="740" y2="350" stroke="#888"/>
+<line x1="90" y1="350.0" x2="740" y2="350.0" stroke="#eee"/>
+<text x="84" y="353.0" text-anchor="end" fill="#555">897.0 MiB</text>
+<line x1="90" y1="320.0" x2="740" y2="320.0" stroke="#eee"/>
+<text x="84" y="323.0" text-anchor="end" fill="#555">912.2 MiB</text>
+<line x1="90" y1="290.0" x2="740" y2="290.0" stroke="#eee"/>
+<text x="84" y="293.0" text-anchor="end" fill="#555">927.5 MiB</text>
+<line x1="90" y1="260.0" x2="740" y2="260.0" stroke="#eee"/>
+<text x="84" y="263.0" text-anchor="end" fill="#555">942.8 MiB</text>
+<line x1="90" y1="230.0" x2="740" y2="230.0" stroke="#eee"/>
+<text x="84" y="233.0" text-anchor="end" fill="#555">958.0 MiB</text>
+<polyline fill="none" stroke="#1f77b4" stroke-width="2" points="90.0,334.2 220.0,336.2 350.0,261.5 480.0,249.7 610.0,251.7 740.0,243.8 "/>
+<text x="415" y="394" text-anchor="middle" fill="#555">merges over time (oldest → newest)</text>
+</svg>
