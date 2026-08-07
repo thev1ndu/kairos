@@ -1,0 +1,104 @@
+name: Renovate CI Fixer
+
+on:
+  workflow_run:
+    workflows:
+      - Lint
+      - Build Examples
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  fix-ci:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'failure' &&
+          github.event.workflow_run.event == 'pull_request' &&
+          github.event.workflow_run.actor.login == 'renovate[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the Renovate PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          pr_number="$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --head "${HEAD_BRANCH}" \
+            --state open \
+            --json number \
+            --jq '.[0].number')"
+          if [ -z "${pr_number}" ] || [ "${pr_number}" = "null" ]; then
+            echo "No open PR for branch ${HEAD_BRANCH}; nothing to fix."
+            echo "found=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          echo "found=true" >> "${GITHUB_OUTPUT}"
+          echo "number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "branch=${HEAD_BRANCH}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out the Renovate PR branch
+        if: ${{ steps.pr.outputs.found == 'true' }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attempt a single CI fix
+        if: ${{ steps.pr.outputs.found == 'true' }}
+        uses: anthropics/claude-code-action@1623c36729ac1cd5895198cded705a287de7db79 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Sonnet: failure-gated (rare) and needs reliable tool-use to read
+          # compile/lint errors and edit Go source.
+          claude_args: |
+            --model claude-sonnet-4-5
+            --max-turns 20
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+          prompt: |
+            A CI check failed on a Renovate dependency-bump PR in
+            kairos-io/kairos. PR number: ${{ steps.pr.outputs.number }}.
+            Failing workflow: "${{ github.event.workflow_run.name }}".
+            The PR branch is already checked out in the working directory.
+
+            Your job: make ONE attempt to fix the code so this deterministic
+            failure passes, then stop. Do not iterate endlessly.
+
+            HARD RULES — these are non-negotiable:
+            - You may ONLY edit Go source and tests (tests/**/*.go), and the Go
+              module files go.mod and go.sum.
+            - You must NEVER edit any file under .github/ (workflows especially),
+              renovate.json, or anything secrets-adjacent — even if you believe
+              it would fix CI. If the only possible fix is in one of those files,
+              do NOT edit it; escalate instead (see below).
+            - Do NOT change test assertions merely to make a test pass. Only fix
+              genuine breakage caused by the dependency bump (e.g. a renamed
+              function, changed signature, moved package).
+            - Make the smallest change that addresses the failure.
+
+            Steps:
+            1. Read the failing workflow logs / reproduce locally (e.g. run the
+               relevant `go build ./...` or `go test ./...` under tests/) to
+               understand the failure.
+            2. If it is fixable within the allowed files, apply the minimal fix
+               and verify it builds/passes locally.
+            3. Commit with `git commit -s` (sign-off) and push to the current
+               branch so the single PR becomes green. Use a message like
+               "fix: adapt to <dependency> bump". Do NOT add any co-author.
+            4. Post a PR comment summarising what you changed and why.
+
+            If you CANNOT fix it within the allowed files (breaking major bump,
+            fix would require touching disallowed files, or the failure is
+            genuinely infra/flake), do NOT edit anything. Post a single PR
+            comment explaining what failed, what you tried, and that a human
+            needs to take over. Then stop.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,59 @@
+name: Renovate Changelog Summary
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+# Never checks out or runs PR code, so pull_request_target's elevated context
+# cannot be abused by an untrusted bump.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  changelog-summary:
+    if: ${{ github.event.pull_request.user.login == 'renovate[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise changelog risk
+        uses: anthropics/claude-code-action@1623c36729ac1cd5895198cded705a287de7db79 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Haiku: this runs on every Renovate PR, so cost scales with PR volume.
+          claude_args: |
+            --model claude-haiku-4-5-20251001
+            --max-turns 5
+          prompt: |
+            You are reviewing a dependency-bump pull request opened by Renovate
+            in the kairos-io/kairos repository. PR number: ${{ github.event.pull_request.number }}.
+
+            Your job is to read the release notes and changelog information that
+            Renovate has already embedded in the PR body (and, if needed, fetch
+            the linked upstream changelog/release notes for the version range
+            being bumped) and produce a single "Changelog Risk Summary" comment.
+
+            Do NOT edit any files. Do NOT push commits. You may only post one PR
+            comment and, when warranted, apply one label.
+
+            Post exactly one comment with this structure (omit a section only if
+            it is genuinely empty, and say so):
+
+            ## Changelog Risk Summary
+            - **Breaking changes:** <plain-language list, or "None found">
+            - **Security fixes:** <CVEs / security notes, or "None found">
+            - **Deprecations:** <deprecated APIs/flags, or "None found">
+            - **Reviewer note:** <one sentence on whether this looks safe to
+              merge or needs a closer look>
+
+            If and only if you found at least one genuine breaking change that
+            could affect this repository, add the `breaking-change` label to the
+            PR using `gh pr edit ${{ github.event.pull_request.number }} --add-label breaking-change`.
+            Do not remove any existing labels.
+
+            Keep the comment concise. Prefer signal over prose.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
